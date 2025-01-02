@@ -1,0 +1,12 @@
+.venv_echo
+.vscode
+/database
+credentials.json
+token.json
+ECHO.md
+ECHO_future.md
+debugger.ipynb
+setup.py
+.env
+*.pyc
+pycache/
