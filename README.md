@@ -2,7 +2,7 @@
 
 A tool that reads your newsletter subscriptions through Gmail, extracts the key concepts, and helps you generate Twitter content from them.
 
-> 🎥 [Watch Demo Video - Coming Soon!]
+![Demo Video](media/demo720.mov)
 
 ## What is Echo?
 
