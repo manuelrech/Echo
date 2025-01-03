@@ -4,7 +4,7 @@ from typing import Optional, Callable, Any
 from email.utils import parsedate_to_datetime
 from pydantic import BaseModel, Field, ConfigDict
 import pandas as pd
-
+import os
 from ..logger import setup_logger
 from .sql_statements import (
     CREATE_EMAILS_TABLE, CREATE_TWEETS_TABLE, CREATE_CONCEPTS_TABLE,
@@ -12,7 +12,7 @@ from .sql_statements import (
     MARK_EMAIL_AS_PROCESSED, LOOK_FOR_EMAIL_BY_ID, INSERT_CONCEPT,
     INSERT_EMAIL_CONCEPT, UPDATE_CONCEPT_REFERENCE_COUNT,
     GET_UNUSED_CONCEPTS_FOR_TWEETS, INSERT_TWEET, LINK_TWEET_TO_CONCEPT,
-    CREATE_TWEETS_CONCEPTS_TABLE, UPDATE_CONCEPT_LINKS
+    CREATE_TWEETS_CONCEPTS_TABLE, UPDATE_CONCEPT_LINKS, MARK_CONCEPT_AS_USED
 )
 from ..concepts.classes import Concept
 
@@ -24,6 +24,8 @@ class SQLDatabase(BaseModel):
     conn: Optional[sqlite3.Connection] = Field(default=None)
     
     def model_post_init(self, __context: Any) -> None:
+        if not os.path.exists(self.db_path):
+            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         self._create_tables()
         return self
 
@@ -157,7 +159,9 @@ class SQLDatabase(BaseModel):
                 'concept_text': row[2],
                 'keywords': row[3],
                 'links': row[4],
-                'chroma_id': row[5]
+                'chroma_id': row[5],
+                'updated_at': row[6],
+                'times_referenced': row[7]
             }
             for row in cursor.fetchall()
         ]
@@ -188,6 +192,16 @@ class SQLDatabase(BaseModel):
         """Update the links for a concept."""
         cursor.execute(UPDATE_CONCEPT_LINKS, (new_links, concept_id))
         return True
+
+    @with_connection
+    def mark_concept_as_used(self, cursor: sqlite3.Cursor, concept_id: int) -> bool:
+        """Mark a concept as used."""
+        try:
+            cursor.execute(MARK_CONCEPT_AS_USED, (concept_id,))
+            return True
+        except sqlite3.Error as e:
+            logger.error(f"Error marking concept as used: {e}", exc_info=True)
+            return False
 
 
 

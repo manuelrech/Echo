@@ -22,10 +22,22 @@ class EmailFetcher(BaseModel):
             self.service = authenticator.get_gmail_service()
         return self
 
-    def list_messages(self, user_id: str = 'me', only_unread: bool = True) -> list[dict[str, str]]:
+    def list_messages(self, user_id: str = 'me', only_unread: bool = True, recipients: list[str] = []) -> list[dict[str, str]]:
         """List all messages matching a query."""
         try:
-            query = 'is:unread' if only_unread else ''
+            query_parts = []
+            if only_unread:
+                query_parts.append('is:unread')
+            
+            if recipients:
+                if len(recipients) == 1:
+                    query_parts.append(f'from:{recipients[0]}')
+                else:
+                    formatted_recipients = ' OR '.join(f'from:{email}' for email in recipients)
+                    query_parts.append(f'({formatted_recipients})')
+            
+            query = ' '.join(query_parts)
+            
             logger.info(f'Listing messages for user {user_id} with query: {query}')
             response = self.service.users().messages().list(
                 userId=user_id, 
@@ -71,7 +83,6 @@ class EmailFetcher(BaseModel):
             if not raw_message:
                 return {"error": "No message data provided"}
 
-            # Estrarre il payload e i dettagli principali
             payload = raw_message.get('payload', {})
             headers = payload.get('headers', [])
             parts = payload.get('parts', [])

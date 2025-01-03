@@ -1,10 +1,10 @@
-
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
-from chromadb.utils.embedding_functions.openai_embedding_function import OpenAIEmbeddingFunction
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Any
+import requests
 import os
+
 from ..database.vector import ChromaDatabase
 from ..database.sql import SQLDatabase
 from ..logger import setup_logger
@@ -14,15 +14,16 @@ logger = setup_logger(__name__)
 
 class ConceptExtractor(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    model: str = Field(default='gpt-4o')
-    llm: ChatOpenAI = Field(default=None)
-    embedding_model: OpenAIEmbeddingFunction = Field(default=None)
+    model: str = Field(default=None)
     sql_db: SQLDatabase = Field(default=None)
     vector_db: ChromaDatabase = Field(default=None)
-
+    llm: ChatOpenAI = Field(default=None)
+    
     def model_post_init(self, __context: Any) -> None:
-        self.llm = ChatOpenAI(api_key=os.getenv("OPENAI_API_KEY"), model=self.model)
-        self.embedding_model = OpenAIEmbeddingFunction(api_key=os.getenv("OPENAI_API_KEY"), model_name='text-embedding-ada-002')
+        if 'deepseek' in self.model:
+            self.llm = ChatOpenAI(api_key=os.getenv("DEEPSEEK_API_KEY"), model='deepseek-chat', base_url='https://api.deepseek.com/')
+        else:
+            self.llm = ChatOpenAI(api_key=os.getenv("OPENAI_API_KEY"), model=self.model)
 
     def _extract_concepts(self, email_content: str, email_id: str) -> ConceptList:
         """Extract concepts from email content using OpenAI."""
@@ -36,14 +37,20 @@ class ConceptExtractor(BaseModel):
             
             for concept in concept_list.concepts:
                 concept.source_email_id = email_id
+                if concept.links:
+                    for link in concept.links:
+                        response = requests.get(link, allow_redirects=True)
+                        if response.status_code == 200:
+                            link = response.url
             
+
             return concept_list
             
         except Exception as e:
             logger.error(f"Error extracting concepts: {e}", exc_info=True)
             return []
     
-    def process_email_concepts(self, email_data: dict):
+    def process_email_concepts(self, email_data: dict, similarity_threshold_limit: float = 0.85):
         """Process an email to extract and store concepts."""
         try:
             logger.info(f"Processing concepts for email: {email_data['subject']}")
@@ -59,7 +66,7 @@ class ConceptExtractor(BaseModel):
             stored_count = 0
             
             for concept in concepts.concepts:
-                chroma_concept_id = self.vector_db.store_concept(concept)
+                chroma_concept_id = self.vector_db.store_concept(concept, similarity_threshold_limit=similarity_threshold_limit)
                 if chroma_concept_id:
                     sql_concept_id = self.sql_db.store_concept(concept, chroma_concept_id)
                     if sql_concept_id:

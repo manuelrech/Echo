@@ -28,7 +28,7 @@ def main():
         logger.info(f"Found {len(unprocessed_emails)} unprocessed emails.")
         
         for email in unprocessed_emails:
-            concept_extractor.process_email_concepts(email)
+            concept_extractor.process_email_concepts(email, similarity_threshold_limit=0.85)
 
         logger.info("Completed concept extraction process.")
 

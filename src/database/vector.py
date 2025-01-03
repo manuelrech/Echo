@@ -1,8 +1,10 @@
 import os
 import chromadb
+from chromadb import PersistentClient, Collection
 from typing import Optional, Any
 from datetime import datetime
 from chromadb.utils.embedding_functions.openai_embedding_function import OpenAIEmbeddingFunction
+
 from pydantic import BaseModel, Field, ConfigDict
 
 from ..concepts.classes import Concept
@@ -12,13 +14,18 @@ logger = setup_logger(__name__)
 
 class ChromaDatabase(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    embedding_model: str = Field(default="text-embedding-ada-002")
-    persist_directory: str = Field(default="./database/echo_vector")
-    chroma_client: chromadb.PersistentClient = Field(default=None)
-    collection: chromadb.Collection = Field(default=None)
+    embedding_model_name: str = Field(default=...)
+    persist_directory: str = Field(default="./database")
+    chroma_client: PersistentClient = Field(default=None)
+    collection: Collection = Field(default=None)
+    embedding_model: OpenAIEmbeddingFunction = Field(default=None)
 
     def model_post_init(self, __context: Any) -> None:
-        self.embedding_model = OpenAIEmbeddingFunction(api_key=os.getenv("OPENAI_API_KEY"), model_name=self.embedding_model)
+        if not os.path.exists(self.persist_directory):
+            os.makedirs(os.path.dirname(self.persist_directory), exist_ok=True)
+            print(1)
+        self.embedding_model = OpenAIEmbeddingFunction(api_key=os.getenv("OPENAI_API_KEY"), model_name=self.embedding_model_name)
+        # self.embedding_model = InstructorEmbeddingFunction(model_name="hkunlp/instructor-xl", device="cpu")
         self.chroma_client = chromadb.PersistentClient(path=self.persist_directory)
         try:
             self.collection = self.chroma_client.get_or_create_collection(name="concepts", embedding_function=self.embedding_model)
@@ -55,19 +62,19 @@ class ChromaDatabase(BaseModel):
     def has_similar_concepts(self, concept: Concept, similarity_threshold: float = 0.85) -> bool:
         """Find similar concepts in Chroma."""
         try:
-            similar_concepts = self.get_similar_concepts(concept, similarity_threshold)
+            similar_concepts = self.get_similar_concepts({'concept_text': concept.concept_text}, similarity_threshold)
             return len(similar_concepts) > 0
 
         except Exception as e:
             logger.error(f"Error finding similar concepts: {e}", exc_info=True)
             return False
 
-    def store_concept(self, concept: Concept) -> Optional[str]:
+    def store_concept(self, concept: Concept, similarity_threshold_limit: float = 0.85) -> Optional[str]:
         """Store a concept in Chroma if no similar concepts exist."""
         try:
             similar_concepts = self.has_similar_concepts(
                 concept=concept, 
-                similarity_threshold=0.85
+                similarity_threshold=similarity_threshold_limit
             )
             if similar_concepts:
                 logger.info(f"Found similar concept(s) - skipping storage")
@@ -82,7 +89,7 @@ class ChromaDatabase(BaseModel):
                     {
                         "source_email_id": concept.source_email_id,
                         "created_at": datetime.now().isoformat(),
-                        "keywords": concept.keywords,
+                        "keywords": ', '.join(concept.keywords),
                         "centrality": concept.centrality
                     }
                 ]

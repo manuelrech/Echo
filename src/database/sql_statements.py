@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS concepts (
     keywords TEXT,
     links TEXT,
     times_referenced INTEGER DEFAULT 0,
+    used BOOLEAN DEFAULT FALSE,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     chroma_id TEXT UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -112,14 +113,17 @@ ORDER BY times_referenced DESC;
 """
 
 GET_UNUSED_CONCEPTS_FOR_TWEETS = """
-SELECT DISTINCT c.id, c.title, c.concept_text, c.keywords, c.links, c.chroma_id
+SELECT DISTINCT c.id, c.title, c.concept_text, c.keywords, c.links, c.chroma_id, c.updated_at, c.times_referenced
 FROM concepts c
-LEFT JOIN tweets_concepts tc ON c.id = tc.concept_id
-WHERE tc.concept_id IS NULL
+WHERE c.used = FALSE
 AND date(c.updated_at) >= date('now', '-{days_before} day')
 ORDER BY c.times_referenced DESC;
 """
 
 UPDATE_CONCEPT_LINKS = """
 UPDATE concepts SET links = ? WHERE id = ?;
+"""
+
+MARK_CONCEPT_AS_USED = """
+UPDATE concepts SET used = TRUE WHERE id = ?;
 """
