@@ -1,7 +1,6 @@
 import requests
 import streamlit as st
-from src.database.sql import SQLDatabase
-
+from src.frontend.api_client import EchoAPIClient
 def get_link_preview(url):
     response = requests.get(f"https://api.microlink.io/?url={url}")
     if response.status_code == 200:
@@ -67,8 +66,9 @@ def show_concept_details(concept):
             st.switch_page("pages/2_🐦_Generate_Tweet.py")
     with col2:
         if st.button("Mark as Used 🗑️", use_container_width=True):
-            db = SQLDatabase()
-            if db.mark_concept_as_used(concept_id=concept['id']):
+            api_client = EchoAPIClient()
+            api_client.set_user_id(st.session_state.user_id)
+            if api_client.mark_concept_as_used(concept_id=concept['id']):
                 st.success("Concept marked as used!")
                 st.rerun()
 

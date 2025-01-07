@@ -18,11 +18,9 @@ class Thread(BaseModel):
     tweets: list[Tweet] = Field(..., description="A list of tweets")
 
 class TweetCreator(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-    db: SQLDatabase = Field(..., description='The database used')
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra='allow')
     model_name: str = Field(default="gpt-4o")
-    llm: ChatOpenAI = Field(default=None)
-    prompt_template: str = Field(default="")
+    prompt_template: str = Field(default=...)
 
     def model_post_init(self, __context: Any) -> None:
         if 'deepseek' in self.model_name:

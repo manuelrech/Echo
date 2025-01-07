@@ -1,25 +1,40 @@
+CREATE_USERS_TABLE = """
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    chroma_collection_id TEXT UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP
+);
+"""
+
 CREATE_EMAILS_TABLE = """
 CREATE TABLE IF NOT EXISTS emails (
     id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
     subject TEXT,
     sender TEXT,
     date DATETIME,
     snippet TEXT,
     body TEXT,
     processed BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id)
 );
 """
 
 CREATE_TWEETS_TABLE = """
 CREATE TABLE IF NOT EXISTS tweets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     concept_id TEXT,
     tweet_text TEXT,
     source_type TEXT CHECK(source_type IN ('concept', 'external')) NOT NULL,
     published BOOLEAN DEFAULT FALSE,
     publish_date DATETIME,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id),
     FOREIGN KEY (concept_id) REFERENCES concepts (id)
 );
 """
@@ -27,6 +42,7 @@ CREATE TABLE IF NOT EXISTS tweets (
 CREATE_CONCEPTS_TABLE = """
 CREATE TABLE IF NOT EXISTS concepts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
     title TEXT NOT NULL,
     concept_text TEXT NOT NULL,
     keywords TEXT,
@@ -35,7 +51,8 @@ CREATE TABLE IF NOT EXISTS concepts (
     used BOOLEAN DEFAULT FALSE,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     chroma_id TEXT UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id)
 );
 """
 
@@ -43,11 +60,13 @@ CREATE_EMAIL_CONCEPTS_TABLE = """
 CREATE TABLE IF NOT EXISTS email_concepts (
     email_id TEXT,
     concept_id INTEGER,
+    user_id INTEGER NOT NULL,
     relevance TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (email_id, concept_id),
     FOREIGN KEY (email_id) REFERENCES emails (id),
-    FOREIGN KEY (concept_id) REFERENCES concepts (id)
+    FOREIGN KEY (concept_id) REFERENCES concepts (id),
+    FOREIGN KEY (user_id) REFERENCES users (id)
 );
 """
 
@@ -55,9 +74,11 @@ CREATE_TWEETS_CONCEPTS_TABLE = """
 CREATE TABLE IF NOT EXISTS tweets_concepts (
     tweet_id INTEGER,
     concept_id INTEGER,
+    user_id INTEGER NOT NULL,
     PRIMARY KEY (tweet_id, concept_id),
     FOREIGN KEY (tweet_id) REFERENCES tweets (id),
-    FOREIGN KEY (concept_id) REFERENCES concepts (id)
+    FOREIGN KEY (concept_id) REFERENCES concepts (id),
+    FOREIGN KEY (user_id) REFERENCES users (id)
 );
 """
 
@@ -115,8 +136,9 @@ ORDER BY times_referenced DESC;
 GET_UNUSED_CONCEPTS_FOR_TWEETS = """
 SELECT DISTINCT c.id, c.title, c.concept_text, c.keywords, c.links, c.chroma_id, c.updated_at, c.times_referenced
 FROM concepts c
-WHERE c.used = FALSE
-AND date(c.updated_at) >= date('now', '-{days_before} day')
+WHERE c.used = FALSE 
+AND c.user_id = ?
+AND date(c.updated_at) >= date('now', ?)
 ORDER BY c.times_referenced DESC;
 """
 

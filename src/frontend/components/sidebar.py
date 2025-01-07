@@ -1,9 +1,17 @@
-import streamlit as st
 import os
-from src.database.sql import SQLDatabase
-from src.database.vector import ChromaDatabase
-from src.concepts.extractor import ConceptExtractor
-from src.gmail_reader.email_fetcher import EmailFetcher
+import streamlit as st
+from src.frontend.api_client import EchoAPIClient
+
+def show_error_details(error):
+    """Display detailed error information in an expander."""
+    print(error.response.json())
+    with st.expander("🔍 Error Details", expanded=True):
+        if hasattr(error, 'response') and error.response is not None:
+
+            error_detail = error.response.json().get('detail', {})
+            st.error(f"Error: {error_detail}")
+        else:
+            st.error(f"Error: {str(error)}")
 
 def show_api_keys():
     """Show API keys expander in sidebar."""
@@ -25,7 +33,6 @@ def show_api_keys():
             os.environ['DEEPSEEK_API_KEY'] = deepseek_key
             st.session_state.deepseek_key = deepseek_key
     
-    
 def show_model_choice():
     with st.expander("🤖 Model Settings"):
         st.session_state.selected_model = st.selectbox(
@@ -33,7 +40,7 @@ def show_model_choice():
             ["deepseek-v3", "gpt-4o",  "gpt-4o-mini"],
             help="Choose the model to use for generation"
         )
-        st.session_state.selected_embedding_model = st.selectbox(
+        st.session_state.embedding_model_name = st.selectbox(
             "Select Embedding Model",
             ["text-embedding-ada-002"],
             help="Choose the embedding model to use for generation"
@@ -78,36 +85,29 @@ def show_email_fetching():
             if not st.session_state.openai_key and not st.session_state.deepseek_key:
                 st.error("Please set your OpenAI or DeepSeek API key first!")
             else:
-                db = SQLDatabase()
-                vector_db = ChromaDatabase(
-                    embedding_model_name=st.session_state.selected_embedding_model,
-                )
-                email_fetcher = EmailFetcher()
-                concept_extractor = ConceptExtractor(
-                    sql_db=db,
-                    vector_db=vector_db,
-                    model=st.session_state.selected_model,
-                )
                 try:
-                    with st.spinner("Fetching emails..."):
-                        recipient_list = [r.strip() for r in recipients.split('\n') if r.strip()]
-                        
-                        messages = email_fetcher.list_messages(
+                    api_client = EchoAPIClient()
+                    api_client.set_user_id(st.session_state.user_id)
+                    recipient_list = [r.strip() for r in recipients.split('\n') if r.strip()]
+                    
+                    with st.spinner("Fetching emails and generating concepts..."):
+                        result = api_client.fetch_and_generate_concepts(
+                            model_name=st.session_state.selected_model,
+                            embedding_model_name=st.session_state.embedding_model_name,
                             only_unread=unread_only,
-                            recipients=recipient_list if recipient_list else []
+                            recipients=recipient_list,
+                            similarity_threshold=similarity_threshold
                         )
-                        
-                        for message in messages:
-                            raw_message = email_fetcher.get_raw_message('me', message['id'])
-                            formatted_message = email_fetcher.format_message(raw_message)
-                            db.store_email(formatted_message)
-                        
-                    with st.spinner("Generating concepts..."):
-                        emails = db.get_unprocessed_emails()
-                        
-                        for email in emails:
-                            concept_extractor.process_email_concepts(email, similarity_threshold)
-                        
-                        st.success(f"Successfully processed {len(emails)} emails!")
+
+                        if 'too_many_emails' in result and result['too_many_emails']:
+                            st.warning("I found more than 50 emails, I cannot fetch that many in the demo version\n\nTry setting a list of recipients or tick the 'Only Unread' checkbox.")
+                        elif 'no_emails_found' in result and result['no_emails_found']:
+                            st.warning("No emails found.\n\nTry unchecking the 'Only Unread' checkbox and inserting a list of recipients.")
+                        else:
+                            st.success(
+                                f"Successfully processed {result['processed_emails']} emails "
+                                f"and generated {result['processed_concepts']} concepts!"
+                            )
                 except Exception as e:
-                    st.error(f"An error occurred: {str(e)}")
+                    # raise e
+                    show_error_details(e)

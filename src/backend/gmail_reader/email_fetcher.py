@@ -3,6 +3,7 @@ API reference:
 https://developers.google.com/gmail/api/reference/rest/v1/users
 """
 import base64
+from typing import Optional
 from googleapiclient.discovery import Resource
 from pydantic import BaseModel, model_validator, Field
 
@@ -14,11 +15,12 @@ logger = setup_logger(__name__)
 class EmailFetcher(BaseModel):
     model_config = {'arbitrary_types_allowed': True}
     service: Resource = Field(default=None)
+    user_id: Optional[int] = None
 
     @model_validator(mode='after')
     def _load_gmail_service(self):
         if not self.service:
-            authenticator = AuthenticatorManager()
+            authenticator = AuthenticatorManager(user_id=self.user_id)
             self.service = authenticator.get_gmail_service()
         return self
 
