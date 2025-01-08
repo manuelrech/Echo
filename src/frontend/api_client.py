@@ -4,8 +4,9 @@ from typing import Dict, List, Optional
 from streamlit import cache_data
 
 class EchoAPIClient:
-    def __init__(self, base_url: str = "http://localhost:8000"):
-        self.base_url = base_url.rstrip('/')
+    def __init__(self, base_url: str = None):
+        self.base_url = (base_url or 
+                        os.getenv('BACKEND_URL', 'http://localhost:8000')).rstrip('/')
         self._user_id: Optional[int] = None
 
     @property
