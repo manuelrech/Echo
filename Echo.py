@@ -103,12 +103,8 @@ def main():
     """, unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📚 Browse Concepts", use_container_width=True):
-            st.switch_page("pages/1_📚_Explore_Concepts.py")
-    with col2:
-        if st.button("🐦 Generate Tweets", use_container_width=True):
-            st.switch_page("pages/2_🐦_Generate_Tweet.py")
+    if st.button("📚 Browse Concepts", use_container_width=True):
+        st.switch_page("pages/1_📚_Explore_Concepts.py")
 
     st.markdown("<p class='caption'>Need help? <a href='https://www.x.com/RechManuel'>Contact me</a>.</p>", unsafe_allow_html=True)
 
