@@ -1,7 +1,14 @@
+# start.sh
 #!/bin/bash
 
-# Avvia il backend in background e salva i log
+# Start the backend in the background
 ./start_backend.sh &
 
-# Avvia il frontend in background e salva i log
+# Start the frontend in the background (optional)
 ./start_frontend.sh &
+
+# Wait for any process to exit (prevents the script from exiting)
+wait -n
+
+# Exit with status of the first process to exit
+exit $?
