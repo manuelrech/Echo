@@ -1,10 +1,10 @@
 .venv_echo
 .vscode
-/database
+database
 .env
 credentials.json
 token.json
 ECHO_demo.md
 __pycache__
 *.pyc
-tokens/
+tokens

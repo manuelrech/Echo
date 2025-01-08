@@ -5,7 +5,7 @@ from src.frontend.api_client import EchoAPIClient
 from src.backend.tweets.prompts import tweet_prompt, thread_prompt
 
 def main():
-    st.set_page_config(page_title="Generate Tweet - Echo", page_icon="🐦", layout="wide", initial_sidebar_state="collapsed")
+    st.set_page_config(page_title="Generate Tweet - Echo", page_icon="🐦", layout="wide", initial_sidebar_state="collapsed", menu_items={'About': "Developed by Manuel Rech, https://www.x.com/RechManuel"})
     api_client = EchoAPIClient()
     api_client.set_user_id(st.session_state.user_id)
 

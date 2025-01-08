@@ -3,6 +3,7 @@ from dotenv import load_dotenv, find_dotenv
 from src.frontend.components.session_state import init_session_state
 from src.frontend.components.login import check_password
 from src.frontend.api_client import EchoAPIClient
+import requests
 
 load_dotenv(find_dotenv())
 
@@ -10,7 +11,10 @@ st.set_page_config(
         page_title="Echo - Tweet Generator",
         page_icon="🐦",
         layout="wide",
-        initial_sidebar_state="collapsed"
+        initial_sidebar_state="collapsed",
+        menu_items={
+            'About': "Developed by Manuel Rech, https://www.x.com/RechManuel"
+        }
     )
 
 def main():
@@ -19,8 +23,11 @@ def main():
     api_client = EchoAPIClient()
     api_client.set_user_id(st.session_state.user_id)
 
-    with st.sidebar:
-        st.header(f"Welcome, {api_client.get_username()}!")
+    try:
+        st.sidebar.header(f"Welcome, {api_client.get_username()}!")
+    except requests.exceptions.ConnectionError as e:
+        st.error("Failed to connect to the API. Please check your internet connection and make sure backend is running.")
+        st.stop()
         # show_api_keys()
 
     st.markdown("""

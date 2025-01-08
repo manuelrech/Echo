@@ -1,14 +1,17 @@
 import requests
 import streamlit as st
 from src.frontend.api_client import EchoAPIClient
+
 def get_link_preview(url):
     response = requests.get(f"https://api.microlink.io/?url={url}")
     if response.status_code == 200:
         data = response.json().get('data', {})
+        image = data.get('image', {})
+        image_url = image.get('url', '') if image else ''
         return {
             'title': data.get('title', 'No title available'),
             'description': data.get('description', 'No description available'),
-            'image': data.get('image', {}).get('url', ''),
+            'image': image_url,
             'url': url
         }
     return None
@@ -27,9 +30,9 @@ def show_keywords_as_pills(keywords):
                 unsafe_allow_html=True
             )
 
-@st.dialog("Concept Details", width="large")
+@st.dialog(title='Concept Details', width="large")
 def show_concept_details(concept):
-    st.subheader(concept['title'])
+    st.title(concept['title'])
     
     if concept['keywords']:
         show_keywords_as_pills(concept['keywords'])

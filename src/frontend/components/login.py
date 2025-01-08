@@ -8,7 +8,38 @@ def check_password() -> bool:
         with st.form("Credentials"):
             st.text_input("Username", key="username")
             st.text_input("Password", type="password", key="password")
+            st.markdown('Forgot password? Contact me at [@RechManuel](https://www.x.com/RechManuel)')
             st.form_submit_button("Log in", on_click=password_entered)
+            
+    def register_form() -> None:
+        """Display registration form with username and password inputs."""
+        with st.form("Registration"):
+            st.text_input("Username", key="reg_username")
+            st.text_input("Password", type="password", key="reg_password")
+            st.text_input("Confirm Password", type="password", key="reg_password_confirm")
+            st.form_submit_button("Register", on_click=register_user)
+
+    def register_user() -> None:
+        """Create a new user with the provided credentials."""
+        if st.session_state["reg_password"] != st.session_state["reg_password_confirm"]:
+            st.session_state["registration_error"] = "Passwords do not match"
+            return
+            
+        db = SQLDatabase()
+        # Check if user already exists
+        if db.get_user(username=st.session_state["reg_username"]):
+            st.session_state["registration_error"] = "Username already exists"
+            return
+            
+        user_id = db.create_user(st.session_state["reg_username"], st.session_state["reg_password"])
+        if user_id:
+            st.session_state["registration_success"] = True
+            # Clear registration fields
+            del st.session_state["reg_username"]
+            del st.session_state["reg_password"]
+            del st.session_state["reg_password_confirm"]
+        else:
+            st.session_state["registration_error"] = "Error creating user"
 
     def password_entered() -> None:
         """Validate entered password against stored credentials."""
@@ -31,7 +62,21 @@ def check_password() -> bool:
 
     st.title("Welcome to Echo 👋")
     
-    login_form()
-    if "password_correct" in st.session_state:
-        st.error("😕 User not known or password incorrect")
+    # Toggle between login and registration
+    tab1, tab2 = st.tabs(["Login", "Register"])
+    
+    with tab1:
+        login_form()
+        if "password_correct" in st.session_state and not st.session_state["password_correct"]:
+            st.error("😕 User not known or password incorrect")
+            
+    with tab2:
+        register_form()
+        if "registration_error" in st.session_state:
+            st.error(st.session_state["registration_error"])
+            del st.session_state["registration_error"]
+        if "registration_success" in st.session_state:
+            st.success("✅ Registration successful! You can now log in.")
+            del st.session_state["registration_success"]
+    
     return False

@@ -1,0 +1,1 @@
+streamlit run Echo.py > frontend_logs.log 2>&1

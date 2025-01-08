@@ -4,7 +4,7 @@ from src.frontend.components.concepts import get_unused_concepts, show_concept_d
 from src.frontend.api_client import EchoAPIClient
 
 def main():
-    st.set_page_config(page_title="Concepts - Echo", page_icon="📚", layout="wide", initial_sidebar_state="collapsed")
+    st.set_page_config(page_title="Concepts - Echo", page_icon="📚", layout="wide", initial_sidebar_state="collapsed", menu_items={'About': "Developed by Manuel Rech, https://www.x.com/RechManuel"})
     api_client = EchoAPIClient()
     api_client.set_user_id(st.session_state.user_id)
 
