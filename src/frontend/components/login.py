@@ -63,20 +63,20 @@ def check_password() -> bool:
     st.title("Welcome to Echo 👋")
     
     # Toggle between login and registration
-    tab1, tab2 = st.tabs(["Login", "Register"])
+    # tab1, tab2 = st.tabs(["Login", "Register"])
     
-    with tab1:
-        login_form()
-        if "password_correct" in st.session_state and not st.session_state["password_correct"]:
-            st.error("😕 User not known or password incorrect")
+    # with tab1:
+    login_form()
+    if "password_correct" in st.session_state and not st.session_state["password_correct"]:
+        st.error("😕 User not known or password incorrect")
             
-    with tab2:
-        register_form()
-        if "registration_error" in st.session_state:
-            st.error(st.session_state["registration_error"])
-            del st.session_state["registration_error"]
-        if "registration_success" in st.session_state:
-            st.success("✅ Registration successful! You can now log in.")
-            del st.session_state["registration_success"]
+    # with tab2:
+    #     register_form()
+    #     if "registration_error" in st.session_state:
+    #         st.error(st.session_state["registration_error"])
+    #         del st.session_state["registration_error"]
+    #     if "registration_success" in st.session_state:
+    #         st.success("✅ Registration successful! You can now log in.")
+    #         del st.session_state["registration_success"]
     
     return False
