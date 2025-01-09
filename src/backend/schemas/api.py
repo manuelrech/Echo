@@ -23,6 +23,11 @@ class EmailFetchRequest(BaseUserRequest):
     model_name: str
     embedding_model_name: str
 
+class UserAuth(BaseModel):
+    """Schema for user authentication requests."""
+    username: str
+    password: str
+
 class UserResponse(BaseModel):
     """Schema for user information responses."""
     id: int

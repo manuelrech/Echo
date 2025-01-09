@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS concepts (
     used BOOLEAN DEFAULT FALSE,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     chroma_id TEXT UNIQUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    date TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
 """
@@ -134,12 +134,12 @@ ORDER BY times_referenced DESC;
 """
 
 GET_UNUSED_CONCEPTS_FOR_TWEETS = """
-SELECT DISTINCT c.id, c.title, c.concept_text, c.keywords, c.links, c.chroma_id, c.updated_at, c.times_referenced
+SELECT DISTINCT c.id, c.title, c.concept_text, c.keywords, c.links, c.chroma_id, c.date, c.times_referenced
 FROM concepts c
 WHERE c.used = FALSE 
 AND c.user_id = ?
-AND date(c.updated_at) >= date('now', ?)
-ORDER BY c.times_referenced DESC;
+AND date(c.date) >= date('now', ?)
+ORDER BY c.date DESC;
 """
 
 UPDATE_CONCEPT_LINKS = """

@@ -103,8 +103,8 @@ class SQLDatabase(BaseModel):
             links = ', '.join(concept.links)
             keywords = ', '.join(concept.keywords)
             cursor.execute(
-                "INSERT INTO concepts (user_id, title, concept_text, keywords, links, chroma_id) VALUES (?, ?, ?, ?, ?, ?)",
-                (user_id, concept.title, concept.concept_text, keywords, links, chroma_id)
+                "INSERT INTO concepts (user_id, title, concept_text, keywords, links, chroma_id, date) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (user_id, concept.title, concept.concept_text, keywords, links, chroma_id, concept.source_email_date)
             )
             return cursor.lastrowid
         except Exception as e:

@@ -9,6 +9,7 @@ class Concept(BaseModel):
     links: List[str] = Field(..., description="Links related to the concept")
     centrality: Literal["high", "medium", "low"] = Field(..., description="Centrality of the concept in the email")
     source_email_id: str = Field(default="", description="ID of the source email")
+    source_email_date: str = Field(default="", description="Date of the source email")
 
 class ConceptList(BaseModel):
     """Schema for a list of LLM-generated concepts."""

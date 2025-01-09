@@ -1,5 +1,5 @@
 import streamlit as st
-from src.backend.database.sql import SQLDatabase
+from src.frontend.api_client import EchoAPIClient
 
 def check_password() -> bool:
     """Check if user provided correct login credentials."""
@@ -25,13 +25,13 @@ def check_password() -> bool:
             st.session_state["registration_error"] = "Passwords do not match"
             return
             
-        db = SQLDatabase()
+        client = EchoAPIClient()
         # Check if user already exists
-        if db.get_user(username=st.session_state["reg_username"]):
+        if client.user_exists(st.session_state["reg_username"]):
             st.session_state["registration_error"] = "Username already exists"
             return
             
-        user_id = db.create_user(st.session_state["reg_username"], st.session_state["reg_password"])
+        user_id = client.register_user(st.session_state["reg_username"], st.session_state["reg_password"])
         if user_id:
             st.session_state["registration_success"] = True
             # Clear registration fields
@@ -43,9 +43,9 @@ def check_password() -> bool:
 
     def password_entered() -> None:
         """Validate entered password against stored credentials."""
-        db = SQLDatabase()
-        if db.verify_password(st.session_state["username"], st.session_state["password"]):
-            user = db.get_user(username=st.session_state["username"])
+        client = EchoAPIClient()
+        if client.verify_password(st.session_state["username"], st.session_state["password"]):
+            user = client.get_user(username=st.session_state["username"])
             st.session_state["password_correct"] = True
             del st.session_state["password"]  # Don't store password
             st.session_state["user_id"] = user["id"]
@@ -53,7 +53,7 @@ def check_password() -> bool:
             st.session_state["chroma_collection_id"] = user["chroma_collection_id"]
             st.session_state["logged_in"] = True
             
-            db.update_last_login(user["username"])
+            client.update_last_login(user["username"])
         else:
             st.session_state["password_correct"] = False
 

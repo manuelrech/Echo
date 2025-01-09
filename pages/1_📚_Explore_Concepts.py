@@ -42,7 +42,7 @@ def main():
     if sort_by == "Most Referenced":
         unused_concepts = sorted(unused_concepts, key=lambda x: x['times_referenced'], reverse=True)
     else:
-        unused_concepts = sorted(unused_concepts, key=lambda x: x['updated_at'], reverse=True)
+        unused_concepts = sorted(unused_concepts, key=lambda x: x['date'], reverse=True)
 
     if not unused_concepts:
         if st.session_state.keyword_filter:
@@ -52,7 +52,6 @@ def main():
     else:
         st.caption(f"Showing {len(unused_concepts)} concepts")
         
-        # n_cols = 5
         cols = st.columns(n_cols)
         for idx, concept in enumerate(unused_concepts):
             with cols[idx % n_cols]:
@@ -72,11 +71,11 @@ def main():
                                 )
                         
                         st.header(title_html)
-                        st.write(concept.get('updated_at', 'Unknown date').split()[0].replace('-', '/') if concept.get('updated_at') != 'Unknown date' else 'Unknown date')
+                        st.write(concept.get('date', 'Unknown date').split()[0].replace('-', '/') if concept.get('date') != 'Unknown date' else 'Unknown date')
                         st.markdown(keywords_html, unsafe_allow_html=True)
                         st.write(f"Referenced: {concept.get('times_referenced', 0)} times")
                         if st.button("View Details 👀", key=f"view_{idx}", use_container_width=True):
-                            show_concept_details(concept) 
+                            show_concept_details(concept)
 
 if __name__ == "__main__":
     if st.session_state.get("logged_in", False):

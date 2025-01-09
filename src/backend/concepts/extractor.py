@@ -24,7 +24,7 @@ class ConceptExtractor(BaseModel):
         else:
             self.llm = ChatOpenAI(api_key=os.getenv("OPENAI_API_KEY"), model=self.model)
 
-    def _extract_concepts(self, email_content: str, email_id: str) -> ConceptList:
+    def _extract_concepts(self, email_content: str, email_id: str, email_date: str) -> ConceptList:
         """Extract concepts from email content using OpenAI."""
         try:
             prompt = PromptTemplate.from_template(
@@ -36,6 +36,7 @@ class ConceptExtractor(BaseModel):
             
             for concept in concept_list.concepts:
                 concept.source_email_id = email_id
+                concept.source_email_date = email_date
                 if concept.links:
                     for link in concept.links:
                         response = requests.get(link, allow_redirects=True)
@@ -64,7 +65,7 @@ class ConceptExtractor(BaseModel):
             logger.info(f"Processing concepts for email: {email_data['subject']} for user {user_id} in collection {chroma_collection_id}")
             
             email_content = f"Subject: {email_data['subject']}\n\n{email_data['body']}"
-            concepts = self._extract_concepts(email_content, email_data['id'])
+            concepts = self._extract_concepts(email_content, email_data['id'], email_data['date'])
             
             if not concepts:
                 logger.info("No concepts found in email.")
@@ -74,7 +75,6 @@ class ConceptExtractor(BaseModel):
             
             stored_count = 0
             for concept in concepts.concepts:
-                # Store in vector database with user-specific collection
                 chroma_concept_id = self.vector_db.store_concept(
                     concept=concept, 
                     similarity_threshold_limit=similarity_threshold_limit,
@@ -82,7 +82,6 @@ class ConceptExtractor(BaseModel):
                 )
                 
                 if chroma_concept_id:
-                    # Store in SQL database with user_id
                     sql_concept_id = self.sql_db.store_concept(
                         concept=concept,
                         chroma_id=chroma_concept_id,
@@ -90,7 +89,6 @@ class ConceptExtractor(BaseModel):
                     )
                     
                     if sql_concept_id:
-                        # Link email to concept with user_id
                         self.sql_db.link_email_to_concept(
                             email_id=email_data['id'],
                             concept_id=sql_concept_id,

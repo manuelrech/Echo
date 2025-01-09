@@ -7,7 +7,12 @@ from src.backend.tweets.prompts import tweet_prompt, thread_prompt
 from src.backend.gmail_reader.email_fetcher import EmailFetcher
 from src.backend.concepts.extractor import ConceptExtractor
 from src.backend.logger import setup_logger
-from src.backend.schemas.api import TweetRequest, EmailFetchRequest
+from src.backend.schemas.api import (
+    TweetRequest, 
+    EmailFetchRequest, 
+    UserAuth, 
+    UserResponse
+)
 import traceback
 
 from dotenv import load_dotenv, find_dotenv
@@ -230,3 +235,80 @@ async def get_username(user_id: int = Depends(get_current_user_id)):
     db = SQLDatabase()
     user = db.get_user(user_id=user_id)
     return user["username"]
+
+@app.get("/user/exists")
+async def check_user_exists(username: str):
+    """Check if a user exists."""
+    try:
+        db = SQLDatabase()
+        user = db.get_user(username=username)
+        return {"exists": user is not None}
+    except Exception as e:
+        logger.error(f"Error in check_user_exists: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/auth/verify")
+async def verify_password(auth: UserAuth):
+    """Verify user's password."""
+    try:
+        db = SQLDatabase()
+        is_valid = db.verify_password(auth.username, auth.password)
+        return {"verified": is_valid}
+    except Exception as e:
+        logger.error(f"Error in verify_password: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/auth/register")
+async def register_user(auth: UserAuth):
+    """Register a new user."""
+    try:
+        db = SQLDatabase()
+        # Check if user already exists
+        if db.get_user(username=auth.username):
+            raise HTTPException(status_code=400, detail="Username already exists")
+        
+        user_id = db.create_user(auth.username, auth.password)
+        if not user_id:
+            raise HTTPException(status_code=500, detail="Failed to create user")
+        
+        return {"user_id": user_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in register_user: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/user")
+async def get_user(username: str):
+    """Get user information by username."""
+    try:
+        db = SQLDatabase()
+        user = db.get_user(username=username)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return UserResponse(
+            id=user["id"],
+            username=user["username"],
+            chroma_collection_id=user["chroma_collection_id"],
+            created_at=user["created_at"],
+            last_login=user["last_login"]
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_user: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/user/login")
+async def update_last_login(username: str):
+    """Update user's last login timestamp."""
+    try:
+        db = SQLDatabase()
+        success = db.update_last_login(username)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update last login")
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Error in update_last_login: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

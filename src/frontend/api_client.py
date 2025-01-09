@@ -88,4 +88,54 @@ class EchoAPIClient:
             params={"user_id": self.user_id}
         )
         response.raise_for_status()
-        return response.json() 
+        return response.json()
+
+    def verify_password(self, username: str, password: str) -> bool:
+        """Verify user's password."""
+        response = requests.post(
+            f"{self.base_url}/auth/verify",
+            json={"username": username, "password": password}
+        )
+        response.raise_for_status()
+        return response.json()["verified"]
+
+    def register_user(self, username: str, password: str) -> Optional[int]:
+        """Register a new user."""
+        response = requests.post(
+            f"{self.base_url}/auth/register",
+            json={"username": username, "password": password}
+        )
+        response.raise_for_status()
+        return response.json()["user_id"]
+
+    def get_user(self, username: str) -> Optional[Dict]:
+        """Get user information by username."""
+        try:
+            response = requests.get(
+                f"{self.base_url}/user",
+                params={"username": username}
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                return None
+            raise
+
+    def user_exists(self, username: str) -> bool:
+        """Check if a user exists."""
+        response = requests.get(
+            f"{self.base_url}/user/exists",
+            params={"username": username}
+        )
+        response.raise_for_status()
+        return response.json()["exists"]
+
+    def update_last_login(self, username: str) -> bool:
+        """Update user's last login timestamp."""
+        response = requests.post(
+            f"{self.base_url}/user/login",
+            params={"username": username}
+        )
+        response.raise_for_status()
+        return response.json()["success"] 
