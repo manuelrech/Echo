@@ -67,8 +67,10 @@ class EchoAPIClient:
                       generation_type: str,
                       model_name: str,
                       embedding_model_name: str,
+                      prompt: str,
                       num_tweets: Optional[int] = 5,
-                      extra_instructions: Optional[str] = None) -> Dict:
+                      extra_instructions: Optional[str] = None,
+                      ) -> Dict:
         data = {
             "user_id": self.user_id,
             "concept_id": concept_id,
@@ -76,7 +78,8 @@ class EchoAPIClient:
             "num_tweets": num_tweets,
             "extra_instructions": extra_instructions,
             "model_name": model_name,
-            "embedding_model_name": embedding_model_name
+            "embedding_model_name": embedding_model_name,
+            "prompt": prompt
         }
         response = requests.post(f"{self.base_url}/generate-tweet?user_id={self.user_id}", json=data)
         response.raise_for_status()
@@ -138,4 +141,53 @@ class EchoAPIClient:
             params={"username": username}
         )
         response.raise_for_status()
-        return response.json()["success"] 
+        return response.json()["success"]
+
+    def save_prompts(self, tweet_prompt: str, thread_prompt: str) -> bool:
+        """Save prompts for the current user."""
+        response = requests.post(
+            f"{self.base_url}/prompts/save?user_id={self.user_id}",
+            params={
+                "user_id": self.user_id,
+                "tweet_prompt": tweet_prompt,
+                "thread_prompt": thread_prompt
+            }
+        )
+        response.raise_for_status()
+        return response.json()["success"]
+
+    def get_prompts(self) -> Optional[Dict]:
+        """Get prompts for the current user."""
+        try:
+            response = requests.get(
+                f"{self.base_url}/prompts?user_id={self.user_id}",
+                params={"user_id": self.user_id}
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                return None
+            raise
+
+    def process_mbox_file(
+        self,
+        file,
+        model_name: str,
+        embedding_model_name: str,
+        similarity_threshold: float = 0.85
+    ) -> dict:
+        """Process an uploaded .mbox file and generate concepts."""
+        files = {"file": file}
+        data = {
+            "model_name": model_name,
+            "embedding_model_name": embedding_model_name,
+            "similarity_threshold": similarity_threshold
+        }
+        
+        response = requests.post(
+            f"{self.base_url}/process-mbox-file?user_id={self.user_id}",
+            files=files,
+            data=data
+        )
+        return response.json() 

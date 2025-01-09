@@ -17,7 +17,7 @@ from .sql_statements import (
     INSERT_EMAIL_CONCEPT, UPDATE_CONCEPT_REFERENCE_COUNT,
     GET_UNUSED_CONCEPTS_FOR_TWEETS, INSERT_TWEET, LINK_TWEET_TO_CONCEPT,
     CREATE_TWEETS_CONCEPTS_TABLE, UPDATE_CONCEPT_LINKS, MARK_CONCEPT_AS_USED,
-    CREATE_USERS_TABLE
+    CREATE_USERS_TABLE, CREATE_PROMPTS_TABLE
 )
 
 logger = setup_logger(__name__)
@@ -50,6 +50,7 @@ class SQLDatabase(BaseModel):
                 cursor.execute(CREATE_USERS_TABLE)
                 cursor.execute(CREATE_EMAILS_TABLE)
                 cursor.execute(CREATE_TWEETS_TABLE)
+                cursor.execute(CREATE_PROMPTS_TABLE)
                 cursor.execute(CREATE_CONCEPTS_TABLE)
                 cursor.execute(CREATE_EMAIL_CONCEPTS_TABLE)
                 cursor.execute(CREATE_TWEETS_CONCEPTS_TABLE)
@@ -334,4 +335,38 @@ class SQLDatabase(BaseModel):
         except sqlite3.Error as e:
             logger.error(f"Error updating last login: {e}", exc_info=True)
             return False
+
+    @with_connection
+    def save_prompts(self, cursor: sqlite3.Cursor, user_id: int, tweet_prompt: str, thread_prompt: str) -> bool:
+        """Save or update prompts for a user."""
+        try:
+            # Check if prompts exist for user
+            cursor.execute("SELECT id FROM prompts WHERE user_id = ?", (user_id,))
+            existing = cursor.fetchone()
+            
+            if existing:
+                cursor.execute(
+                    "UPDATE prompts SET tweet_prompt = ?, thread_prompt = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?",
+                    (tweet_prompt, thread_prompt, user_id)
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO prompts (user_id, tweet_prompt, thread_prompt) VALUES (?, ?, ?)",
+                    (user_id, tweet_prompt, thread_prompt)
+                )
+            return True
+        except sqlite3.Error as e:
+            logger.error(f"Error saving prompts: {e}", exc_info=True)
+            return False
+
+    @with_connection
+    def get_prompts(self, cursor: sqlite3.Cursor, user_id: int) -> Optional[Dict]:
+        """Get prompts for a user."""
+        try:
+            cursor.execute("SELECT tweet_prompt, thread_prompt FROM prompts WHERE user_id = ?", (user_id,))
+            result = cursor.fetchone()
+            return dict(result) if result else None
+        except sqlite3.Error as e:
+            logger.error(f"Error getting prompts: {e}", exc_info=True)
+            return None
 

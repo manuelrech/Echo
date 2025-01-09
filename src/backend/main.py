@@ -1,19 +1,22 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from src.backend.database.sql import SQLDatabase
 from src.backend.database.vector import ChromaDatabase
 from src.backend.tweets.creator import TweetCreator
-from src.backend.tweets.prompts import tweet_prompt, thread_prompt
 from src.backend.gmail_reader.email_fetcher import EmailFetcher
+from src.backend.gmail_loader.email_loader import EmailLoader
 from src.backend.concepts.extractor import ConceptExtractor
 from src.backend.logger import setup_logger
 from src.backend.schemas.api import (
     TweetRequest, 
     EmailFetchRequest, 
     UserAuth, 
-    UserResponse
+    UserResponse,
+    MboxUploadRequest
 )
 import traceback
+import tempfile
+import os
 
 from dotenv import load_dotenv, find_dotenv
 
@@ -175,14 +178,14 @@ async def generate_tweet(request: TweetRequest, user_id: int = Depends(get_curre
         )
 
         if request.generation_type == "thread":
-            modified_prompt = thread_prompt.replace("{num_tweets}", str(request.num_tweets))
+            modified_prompt = request.prompt.replace("{num_tweets}", str(request.num_tweets))
             creator = TweetCreator(
                 prompt_template=modified_prompt,
                 model_name=request.model_name
             )
         else:
             creator = TweetCreator(
-                prompt_template=tweet_prompt,
+                prompt_template=request.prompt,
                 model_name=request.model_name
             )
 
@@ -312,3 +315,109 @@ async def update_last_login(username: str):
     except Exception as e:
         logger.error(f"Error in update_last_login: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/prompts/save")
+async def save_prompts(tweet_prompt: str, thread_prompt: str, user_id: int = Depends(get_current_user_id)):
+    """Save prompts for a user."""
+    try:
+        db = SQLDatabase()
+        success = db.save_prompts(user_id, tweet_prompt, thread_prompt)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to save prompts")
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Error in save_prompts: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/prompts")
+async def get_prompts(user_id: int = Depends(get_current_user_id)):
+    """Get prompts for a user."""
+    try:
+        db = SQLDatabase()
+        prompts = db.get_prompts(user_id)
+        if not prompts:
+            raise HTTPException(status_code=404, detail="No prompts found")
+        return prompts
+    except Exception as e:
+        logger.error(f"Error in get_prompts: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/process-mbox-file")
+async def process_mbox_file(
+    file: UploadFile = File(...),
+    request: MboxUploadRequest = Depends(),
+    user_id: int = Depends(get_current_user_id)
+):
+    """Process an uploaded .mbox file and generate concepts."""
+    try:
+        if not file.filename.endswith('.mbox'):
+            raise HTTPException(status_code=400, detail="File must be a .mbox file")
+
+        logger.info(f"Processing mbox file: {file.filename}")
+        db = SQLDatabase()
+        
+        # Verify user exists and get their collection ID
+        user = db.get_user(user_id=user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        chroma_collection_id = user["chroma_collection_id"]
+        
+        # Initialize vector DB and concept extractor
+        vector_db = ChromaDatabase(
+            embedding_model_name=request.embedding_model_name,
+            collection_name=chroma_collection_id
+        )
+        concept_extractor = ConceptExtractor(
+            sql_db=db,
+            vector_db=vector_db,
+            model=request.model_name,
+        )
+
+        # Create a temporary file to store the uploaded content
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mbox') as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_file.flush()
+            
+            # Process the mbox file
+            email_loader = EmailLoader()
+            processed_emails = 0
+            for formatted_message in email_loader.process_mbox_file(temp_file.name):
+                if "error" in formatted_message:
+                    logger.error(f"Error in message: {formatted_message['error']}")
+                    continue
+                    
+                db.store_email(formatted_message, user_id)
+                processed_emails += 1
+
+        # Clean up the temporary file
+        os.unlink(temp_file.name)
+
+        # Process concepts from unprocessed emails
+        emails = db.get_unprocessed_emails(user_id)
+        processed_concepts = 0
+        for email in emails:
+            success, stored_count = concept_extractor.process_email_concepts(
+                email, 
+                request.similarity_threshold, 
+                user_id,
+                chroma_collection_id
+            )
+            if success:
+                processed_concepts += stored_count
+
+        return {
+            "status": "success",
+            "processed_emails": processed_emails,
+            "processed_concepts": processed_concepts
+        }
+
+    except Exception as e:
+        logger.error(f"Error in process_mbox_file: {str(e)}", exc_info=True)
+        error_detail = {
+            "error_type": e.__class__.__name__,
+            "error_message": str(e),
+            "traceback": traceback.format_exc()
+        }
+        raise HTTPException(status_code=500, detail=error_detail)

@@ -13,6 +13,7 @@ class TweetRequest(BaseUserRequest):
     extra_instructions: Optional[str] = None
     model_name: str
     embedding_model_name: str
+    prompt: str
     collection_name: str = "concepts"
 
 class EmailFetchRequest(BaseUserRequest):
@@ -35,3 +36,9 @@ class UserResponse(BaseModel):
     chroma_collection_id: str
     created_at: str
     last_login: Optional[str]
+
+class MboxUploadRequest(BaseModel):
+    """Schema for mbox file upload request."""
+    embedding_model_name: str = "text-embedding-ada-002"
+    model_name: str = "gpt-3.5-turbo-16k"
+    similarity_threshold: float = 0.85

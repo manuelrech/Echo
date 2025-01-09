@@ -35,6 +35,7 @@ def show_api_keys():
     
 def show_model_choice():
     with st.expander("🤖 Model Settings"):
+        st.warning('No need to change this, it is just for testing purposes.')
         st.session_state.selected_model = st.selectbox(
             "Select Model",
             ["deepseek-v3", "gpt-4o",  "gpt-4o-mini"],
@@ -46,12 +47,23 @@ def show_model_choice():
             help="Choose the embedding model to use for generation"
         )
 
-def show_prompt(tweet_prompt, thread_prompt) -> int:
-    with st.expander("🔍 Prompts"):
+def show_prompt() -> int:
+    with st.expander("🔍 Prompts", expanded=True):
         st.markdown("### Tweet Prompt")
-        st.code(tweet_prompt, language="text")
+        st.session_state.tweet_prompt = st.text_area(label='Tweet Prompt', value=st.session_state.tweet_prompt, height=300)
         st.markdown("### Thread Prompt")
-        st.code(thread_prompt, language="text")
+        st.session_state.thread_prompt = st.text_area(label='Thread Prompt', value=st.session_state.thread_prompt, height=300)
+        
+        if st.button("💾 Save Prompts to Database"):
+            try:
+                api_client = EchoAPIClient()
+                api_client.set_user_id(st.session_state.user_id)
+                if api_client.save_prompts(st.session_state.tweet_prompt, st.session_state.thread_prompt):
+                    st.success("Prompts saved successfully!")
+                else:
+                    st.error("Failed to save prompts.")
+            except Exception as e:
+                st.error(e.response.json())
 
 def show_concept_settings():
     with st.expander(label="🔍 Concept Settings"):
@@ -110,4 +122,44 @@ def show_email_fetching():
                             )
                 except Exception as e:
                     # raise e
+                    show_error_details(e)
+
+def show_mbox_upload():
+    """Show mbox file upload form in sidebar."""
+    with st.form("mbox_upload"):
+        st.subheader("Upload .mbox File")
+        uploaded_file = st.file_uploader("Choose a .mbox file", type=['mbox'])
+        similarity_threshold = st.slider(
+            "How similar should concepts be to skip them?",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.85,
+            step=0.01,
+            help="We are performing a similarity check for concepts, this slider sets the threshold for what is considered similar enough to be considered the same concept.\n\n0 means that any similarity will be considered enough to be considered the same concept. \n\n1 means that only identical concepts will be considered the same concept."
+        )
+        
+        if st.form_submit_button("Process .mbox & Generate Concepts"):
+            if not st.session_state.openai_key and not st.session_state.deepseek_key:
+                st.error("Please set your OpenAI or DeepSeek API key first!")
+            elif not uploaded_file:
+                st.error("Please upload a .mbox file first!")
+            else:
+                try:
+                    api_client = EchoAPIClient()
+                    api_client.set_user_id(st.session_state.user_id)
+                    
+                    with st.spinner("Processing .mbox file and generating concepts..."):
+                        result = api_client.process_mbox_file(
+                            file=uploaded_file,
+                            model_name=st.session_state.selected_model,
+                            embedding_model_name=st.session_state.embedding_model_name,
+                            similarity_threshold=similarity_threshold
+                        )
+                        
+                        st.success(
+                            f"Successfully processed {result['processed_emails']} emails "
+                            f"and generated {result['processed_concepts']} concepts!"
+                        )
+                except Exception as e:
+                    raise e 
                     show_error_details(e)

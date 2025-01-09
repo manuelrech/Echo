@@ -82,6 +82,18 @@ CREATE TABLE IF NOT EXISTS tweets_concepts (
 );
 """
 
+CREATE_PROMPTS_TABLE = """
+CREATE TABLE IF NOT EXISTS prompts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    tweet_prompt TEXT NOT NULL,
+    thread_prompt TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id)
+);
+"""
+
 INSERT_EMAIL = """
 INSERT INTO emails (id, subject, sender, date, snippet, body)
 VALUES (?, ?, ?, ?, ?, ?);

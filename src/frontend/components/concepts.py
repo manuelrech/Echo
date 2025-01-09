@@ -75,7 +75,7 @@ def show_concept_details(concept):
                 st.success("Concept marked as used!")
                 st.rerun()
 
-def get_unused_concepts(keyword_filter: str, unused_concepts: list[dict]) -> list[dict]:
+def filter_concepts(keyword_filter: str, unused_concepts: list[dict]) -> list[dict]:
     keywords_list = [k.strip().lower() for k in keyword_filter.split(",")]
     unused_concepts = [
         concept for concept in unused_concepts

@@ -1,6 +1,6 @@
 import streamlit as st
-from src.frontend.components.sidebar import show_api_keys, show_model_choice, show_email_fetching, show_concept_settings
-from src.frontend.components.concepts import get_unused_concepts, show_concept_details
+from src.frontend.components.sidebar import show_api_keys, show_model_choice, show_email_fetching, show_concept_settings, show_mbox_upload
+from src.frontend.components.concepts import filter_concepts, show_concept_details
 from src.frontend.api_client import EchoAPIClient
 
 def main():
@@ -9,17 +9,17 @@ def main():
     api_client.set_user_id(st.session_state.user_id)
 
     with st.sidebar:
-        st.header(f"Welcome, {api_client.get_username()}!")
+        st.header(f"Hey, {api_client.get_username()}! \nHere's what is buzzing in your inbox!")
+        st.divider()
         # show_api_keys()
         show_model_choice()
-        show_concept_settings()
-        show_email_fetching()
+        # show_concept_settings()
+        # show_email_fetching()
+        show_mbox_upload()
 
     st.title("📚 Explore Concepts")
-    
-    unused_concepts = api_client.get_unused_concepts(days_before=st.session_state.days_before)
 
-    col1, col2, col3 = st.columns([6, 2, 1])
+    col1, col2, col3, col4 = st.columns([6, 2, 1, 1])
     with col1:
         st.session_state.keyword_filter = st.text_input(
             "🔍 Filter by keywords", 
@@ -32,9 +32,12 @@ def main():
             help="Choose how to sort the concepts")
     with col3:
         n_cols = st.number_input("Columns", value=3, min_value=1, max_value=10, step=1, help="Number of columns to display the concepts in")
+    with col4:
+        days_before = st.number_input("Days before", value=30, min_value=0, max_value=365, step=1, help="Number of days before today to consider for concepts")
 
+    unused_concepts = api_client.get_unused_concepts(days_before=days_before)
     if st.session_state.keyword_filter:
-        unused_concepts, keywords_list = get_unused_concepts(
+        unused_concepts, keywords_list = filter_concepts(
             keyword_filter=st.session_state.keyword_filter, 
             unused_concepts=unused_concepts
         )

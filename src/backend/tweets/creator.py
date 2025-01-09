@@ -34,18 +34,23 @@ class TweetCreator(BaseModel):
         article = g.extract(url=link)
         return article
     
-    def _add_source_article(self, link: str) -> str:
-        try:
-            article = self._extract_article_from_link(link)
-            self.prompt_template = self.prompt_template.replace("{link}", article.canonical_link)
-            self.prompt_template = self.prompt_template + f"\n\nHere you can see the content of the original article:\n{article.cleaned_text}"
-            if article.links:
-                self.prompt_template = self.prompt_template + f"\n\nHere you can see the links related to the concept:\n{article.links}"
-            return self.prompt_template
-
-        except Exception as e:
-            logger.error(f"Failed to extract article from link {link}: {e}", exc_info=True)
-            return self.prompt_template
+    def _add_source_article(self, link: str | list[str]) -> str:
+        if isinstance(link, str):
+            try:
+                article = self._extract_article_from_link(link)
+                self.prompt_template = self.prompt_template.replace("{link}", article.canonical_link)
+                self.prompt_template = self.prompt_template + f"\n\nHere you can see the content of the original article:\n{article.cleaned_text}"
+                if article.links:
+                    self.prompt_template = self.prompt_template + f"\n\nHere you can see the links related to the concept:\n{article.links}"
+                return self.prompt_template
+            except Exception as e:
+                logger.error(f"Failed to extract article from link {link}: {e}", exc_info=True)
+                return self.prompt_template
+        
+        # Handle list of links case
+        for single_link in link:
+            self._add_source_article(single_link)
+        return self.prompt_template
     
     def _add_similar_concepts(self, similar_concepts: list[dict]) -> str:
         for similar_concept in similar_concepts:

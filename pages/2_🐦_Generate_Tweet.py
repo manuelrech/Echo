@@ -2,7 +2,7 @@ import streamlit as st
 from src.frontend.components.sidebar import show_api_keys, show_model_choice, show_prompt, show_error_details
 from src.frontend.components.concepts import get_link_preview, show_keywords_as_pills
 from src.frontend.api_client import EchoAPIClient
-from src.backend.tweets.prompts import tweet_prompt, thread_prompt
+from src.backend.tweets.prompts import thread_n_tweets_prompt, footer_prompt
 
 def main():
     st.set_page_config(page_title="Generate Tweet - Echo", page_icon="🐦", layout="wide", initial_sidebar_state="collapsed", menu_items={'About': "Developed by Manuel Rech, https://www.x.com/RechManuel"})
@@ -10,10 +10,10 @@ def main():
     api_client.set_user_id(st.session_state.user_id)
 
     with st.sidebar:
-        st.header(f'Welcome, {api_client.get_username()}!')
-        show_api_keys()
+        st.header(f"Hey, {api_client.get_username()}! \nStand out in your X and generate some high quality tweets!")
+        # show_api_keys()
         show_model_choice()
-        show_prompt(tweet_prompt, thread_prompt)
+        show_prompt()
 
     if not st.session_state.current_concept:
         st.error("No concept selected. Please select a concept from the Concepts page.")
@@ -71,9 +71,16 @@ def main():
             placeholder="Add any specific instructions for the generation..."
         )
         
-        # Single Generate button in full width
         if st.button("🚀 Generate", use_container_width=True, type="primary"):
             with st.spinner("Generating..."):
+                if generation_type == 'Thread':
+                    prompt = st.session_state.thread_prompt
+                    prompt = prompt + thread_n_tweets_prompt
+                    prompt = prompt + footer_prompt
+                else:
+                    prompt = st.session_state.tweet_prompt
+                    prompt = prompt + footer_prompt
+
                 try:
                     result = api_client.generate_tweet(
                         concept_id=concept['id'],
@@ -81,7 +88,8 @@ def main():
                         num_tweets=num_tweets if generation_type == "Thread" else None,
                         extra_instructions=extra_instructions,
                         model_name=st.session_state.selected_model,
-                        embedding_model_name=st.session_state.embedding_model_name
+                        embedding_model_name=st.session_state.embedding_model_name,
+                        prompt=prompt
                     )
                     
                     st.markdown("### Generated Content:")
