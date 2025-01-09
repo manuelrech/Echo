@@ -128,6 +128,7 @@ def show_mbox_upload():
     """Show mbox file upload form in sidebar."""
     with st.form("mbox_upload"):
         st.subheader("Upload .mbox File")
+        st.write("Get one here: https://takeout.google.com")
         uploaded_file = st.file_uploader("Choose a .mbox file", type=['mbox'])
         similarity_threshold = st.slider(
             "How similar should concepts be to skip them?",
