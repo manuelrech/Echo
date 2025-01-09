@@ -6,7 +6,7 @@ from googleapiclient.discovery import build, Resource
 import os
 
 from ..logger import setup_logger
-from .config import SCOPES
+from .config import SCOPES, CLIENT_CONFIG
 
 logger = setup_logger(__name__)
 
@@ -39,7 +39,7 @@ class AuthenticatorManager:
                 creds.refresh(Request())
             else:
                 logger.info('Initiating new OAuth flow.')
-                flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+                flow = InstalledAppFlow.from_client_config(CLIENT_CONFIG, SCOPES)
                 creds = flow.run_local_server(port=0)
             
             with open(token_path, 'w') as token:

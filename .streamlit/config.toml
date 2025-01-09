@@ -1,2 +1,20 @@
 [client]
 toolbarMode = "viewer"
+
+[server]
+disconnectedSessionTTL = 86400
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
